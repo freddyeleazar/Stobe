@@ -41,15 +41,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Cache MSVC v100 toolset
-        id: cache-v100
-        uses: actions/cache@v4
-        with:
-          path: C:\Program Files (x86)\Microsoft Visual Studio 10.0
-          key: msvc-v100-winsdk71-v4
-
       - name: Install MSVC v100 (Windows SDK 7.1 + KB2519277)
-        if: steps.cache-v100.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
