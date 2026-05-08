@@ -4471,7 +4471,6 @@ bool TriggerBoredEvent(GameWorld *world, bool forceDirectorMode,
       Log("BORED_EVENT: skipped (no eligible auto listener choices) speaker=" +
           speaker.name + " candidate_count=" + ToString((int)candidates.size()));
       return false;
-    }
   }
 
   if (targetLockedSpeaker && listener.empty()) {
