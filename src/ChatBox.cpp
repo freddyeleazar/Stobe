@@ -2016,6 +2016,14 @@ int ParseTtsDurationToken(const std::string &token) {
   return durationMs;
 }
 
+  std::string ParseListenerSerialToken(const std::string &token) {
+    std::string trimmed = TrimChatLine(token);
+    if (trimmed.find("sid=") != 0) {
+      return "";
+    }
+    return TrimChatLine(trimmed.substr(4));
+  }
+
 void QueueUiNotifyAction(const std::string &message) {
   std::string text = TrimChatLine(message);
   if (text.empty()) {
@@ -2848,6 +2856,38 @@ bool ProcessStreamChatResponseLine(StreamChatParseState *state,
   bool narratorSpeaker = IsNarratorName(actor);
   if (!state->task->handleStr.empty() && actor == state->task->npcName) {
     speakerHeader = actor + "|" + state->task->handleStr;
+  }
+  if (EqualsIgnoreCase(actionKind, "ListenerMeta")) {
+    state->task->previousSpeaker = subtitle;
+    if (bar1 != std::string::npos && bar2 != std::string::npos) {
+      std::string payload = line.substr(bar2 + 1);
+      size_t metaSep = payload.find('|');
+      if (metaSep != std::string::npos) {
+        std::string metadata = payload.substr(metaSep + 1);
+        size_t tokenStart = 0;
+        while (tokenStart <= metadata.length()) {
+          size_t tokenEnd = metadata.find('|', tokenStart);
+          std::string token = (tokenEnd == std::string::npos)
+                                  ? metadata.substr(tokenStart)
+                                  : metadata.substr(tokenStart,
+                                                    tokenEnd - tokenStart);
+          std::string parsedSerial = ParseListenerSerialToken(token);
+          if (!parsedSerial.empty()) {
+            state->task->previousSpeakerHandle = parsedSerial;
+            break;
+          }
+          if (tokenEnd == std::string::npos) {
+            break;
+          }
+          tokenStart = tokenEnd + 1;
+        }
+      }
+    }
+    Log("CHAT_TIMING: listener meta updated speaker=" + actor +
+        " listener=" + state->task->previousSpeaker +
+        " listener_serial=" + state->task->previousSpeakerHandle +
+        " gen=" + ToString((int)state->generation));
+    return true;
   }
   if ((EqualsIgnoreCase(actionKind, "ActionQueue") ||
        EqualsIgnoreCase(actionKind, "Action")) &&
@@ -4425,42 +4465,16 @@ bool TriggerBoredEvent(GameWorld *world, bool forceDirectorMode,
         listenerSerial = candidates[bestListenerIndex].serial;
       }
     }
-  } else {
-    struct ListenerChoice {
-      std::string name;
-      std::string serial;
-    };
-    std::vector<ListenerChoice> listenerChoices;
-    listenerChoices.reserve(listenerIndices.size() + 1);
-    for (size_t i = 0; i < listenerIndices.size(); ++i) {
-      size_t candidateIndex = listenerIndices[i];
-      if (candidateIndex >= candidates.size()) {
-        continue;
-      }
-      ListenerChoice choice;
-      choice.name = candidates[candidateIndex].name;
-      choice.serial = candidates[candidateIndex].serial;
-      listenerChoices.push_back(choice);
-    }
-    if (!playerName.empty() &&
-        !sameIdentity(playerName, playerSerial, speaker.name, speaker.serial)) {
-      ListenerChoice playerChoice;
-      playerChoice.name = playerName;
-      playerChoice.serial = playerSerial;
-      listenerChoices.push_back(playerChoice);
-    }
-    if (listenerChoices.empty()) {
+  } else if (listenerIndices.empty() &&
+             sameIdentity(playerName, playerSerial, speaker.name,
+                          speaker.serial)) {
       Log("BORED_EVENT: skipped (no eligible auto listener choices) speaker=" +
           speaker.name + " candidate_count=" + ToString((int)candidates.size()));
       return false;
     }
-    const ListenerChoice &selectedChoice =
-        listenerChoices[(size_t)(rand() % listenerChoices.size())];
-    listener = selectedChoice.name;
-    listenerSerial = selectedChoice.serial;
   }
 
-  if (listener.empty()) {
+  if (targetLockedSpeaker && listener.empty()) {
     Log("BORED_EVENT: skipped (no resolved listener) speaker=" + speaker.name +
         " candidate_count=" + ToString((int)candidates.size()) +
         " director_mode=" + std::string(forceDirectorMode ? "1" : "0"));
@@ -4493,8 +4507,10 @@ bool TriggerBoredEvent(GameWorld *world, bool forceDirectorMode,
   peopleJson += "]";
 
   std::string mode = forceDirectorMode ? "director" : "autochat";
-  std::string eventData =
-      speaker.name + ": [BORED_EVENT_TRIGGER] (talking to: " + listener + ")";
+  std::string eventData = speaker.name + ": [BORED_EVENT_TRIGGER]";
+  if (!listener.empty()) {
+    eventData += " (talking to: " + listener + ")";
+  }
   std::wstring endpoint =
       L"/StobeServer/stream.php?DATA=" +
       ToWide(BuildStreamQueryData("bored", eventData, ResolveCurrentGameTs())) +
@@ -4515,7 +4531,7 @@ bool TriggerBoredEvent(GameWorld *world, bool forceDirectorMode,
       !playerSerial.empty()) {
     task->previousSpeakerHandle = playerSerial;
   }
-  if (task->previousSpeakerHandle.empty()) {
+  if (task->previousSpeakerHandle.empty() && !listener.empty()) {
     for (size_t i = 0; i < candidates.size(); ++i) {
       if (EqualsIgnoreCase(candidates[i].name, listener)) {
         task->previousSpeakerHandle = candidates[i].serial;
