@@ -272,7 +272,7 @@ void RefreshPluginSettingsUI() {
   PopulateChatModeCombo();
   PopulateSpeakerModeCombo();
   SetToggleCaption(g_autoChatToggle, "Auto Chat", g_pendingAutoChat);
-  SetToggleCaption(g_boredEventsToggle, "Bored Events", g_pendingBoredEvents);
+  SetToggleCaption(g_boredEventsToggle, "Bored Checks", g_pendingBoredEvents);
   SetToggleCaption(g_animalTalksToggle, "Animal Talks", g_pendingAnimalTalks);
   SetToggleCaption(g_ttsToggle, "TTS", g_pendingTtsEnabled);
   SetToggleCaption(g_speedDialogueToggle, "Speed Dialogue",
@@ -366,7 +366,7 @@ void OnPluginAutoChatToggleClick(MyGUI::Widget *sender) {
 
 void OnPluginBoredEventsToggleClick(MyGUI::Widget *sender) {
   g_pendingBoredEvents = !g_pendingBoredEvents;
-  SetToggleCaption(g_boredEventsToggle, "Bored Events", g_pendingBoredEvents);
+  SetToggleCaption(g_boredEventsToggle, "Bored Checks", g_pendingBoredEvents);
 }
 
 void OnPluginAnimalTalksToggleClick(MyGUI::Widget *sender) {
@@ -567,14 +567,14 @@ void CreateSettingsUI() {
       MyGUI::Align::Top | MyGUI::Align::Left, "Stobe_Plugin_TtsVolumeEdit");
   y += rowH + rowGap;
 
-  CreateLabel(client, labelX, y, labelW, rowH, "Bored Event Range",
+  CreateLabel(client, labelX, y, labelW, rowH, "Bored Check Range (plugin)",
               "Stobe_Plugin_BoredRangeLabel");
   g_boredRangeEdit = client->createWidgetReal<MyGUI::EditBox>(
       "Kenshi_EditBox", fieldX, y, fieldW, rowH,
       MyGUI::Align::Top | MyGUI::Align::Left, "Stobe_Plugin_BoredRangeEdit");
   y += rowH + rowGap;
 
-  CreateLabel(client, labelX, y, labelW, rowH, "Bored Event Timer (hours/ingame)",
+  CreateLabel(client, labelX, y, labelW, rowH, "Bored Check Timer (hours/ingame)",
               "Stobe_Plugin_BoredIntervalLabel");
   g_boredIntervalEdit = client->createWidgetReal<MyGUI::EditBox>(
       "Kenshi_EditBox", fieldX, y, fieldW, rowH,
